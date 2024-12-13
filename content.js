@@ -30,10 +30,10 @@ function parseInputText(text) {
 
       // Look for TC and carencia in next lines
       for (let j = i + 1; j < i + 5 && j < lines.length; j++) {
-        if (lines[j].includes("Tempo de contribuicao")) {
+        if (lines[j].includes("Tempo de contribuição")) {
           tcLine = lines[j];
         }
-        if (lines[j].includes("Quantidade de carencia")) {
+        if (lines[j].includes("Quantidade de carência")) {
           carenciaLine = lines[j];
         }
       }
