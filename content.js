@@ -1,4 +1,13 @@
+window.addEventListener("scroll", createImportButton);
+
+function isImportButtonPresent() {
+  return document.querySelector(".import-tc-button") !== null;
+}
+
 function createImportButton() {
+  if (isImportButtonPresent()) {
+    return;
+  }
   const targetText = "Opcional: tempo já reconhecido pelo INSS";
   const targetHeading = Array.from(document.getElementsByTagName("h3")).find(
     (element) => element.textContent === targetText
