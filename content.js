@@ -26,46 +26,110 @@ function parseInputText(text) {
   const entries = {};
   const lines = text.split("\n").filter((line) => line.trim());
 
-  for (let i = 0; i < lines.length; i++) {
-    const currentLine = lines[i];
-    if (currentLine.includes("Analise do direito em")) {
-      const dateMatch = currentLine.match(/(\d{2}\/\d{2}\/\d{4})/);
-      if (!dateMatch) continue;
+  let currentDate = null;
+  let tcData = null;
+  let carenciaData = null;
 
-      const date = dateMatch[0];
+  lines.forEach((line) => {
+    const dateMatch = line.match(/Analise do direito em (\d{2}\/\d{2}\/\d{4})/);
+    const tcMatch = line.match(
+      /Tempo de contribuição : (\d+)a, (\d+)m, (\d+)d/
+    );
+    const carenciaMatch = line.match(/Quantidade de carência : (\d+)/);
 
-      let tcLine = "";
-      let carenciaLine = "";
-
-      // Look for TC and carencia in next lines
-      for (let j = i + 1; j < i + 5 && j < lines.length; j++) {
-        if (lines[j].includes("Tempo de contribuição")) {
-          tcLine = lines[j];
-        }
-        if (lines[j].includes("Quantidade de carência")) {
-          carenciaLine = lines[j];
-        }
-      }
-
-      const tcMatch = tcLine.match(/(\d+)a, (\d+)m, (\d+)d/);
-      const carenciaMatch = carenciaLine.match(/: (\d+)/);
-
-      if (tcMatch && carenciaMatch) {
-        entries[date] = {
-          anos: tcMatch[1],
-          meses: tcMatch[2],
-          dias: tcMatch[3],
-          carencia: carenciaMatch[1],
-          isDER: currentLine.includes("DER"),
+    if (dateMatch) {
+      // If we have complete data from previous date, save it
+      if (currentDate && tcData && carenciaData) {
+        entries[currentDate.date] = {
+          anos: tcData.anos,
+          meses: tcData.meses,
+          dias: tcData.dias,
+          carencia: carenciaData,
+          isDER: currentDate.isDER,
         };
       }
+      // Start new date entry
+      currentDate = {
+        date: dateMatch[1],
+        isDER: line.includes("DER"),
+      };
+      tcData = null;
+      carenciaData = null;
     }
+
+    if (tcMatch) {
+      tcData = {
+        anos: tcMatch[1],
+        meses: tcMatch[2],
+        dias: tcMatch[3],
+      };
+    }
+
+    if (carenciaMatch) {
+      carenciaData = carenciaMatch[1];
+    }
+  });
+
+  // Save the last entry
+  if (currentDate && tcData && carenciaData) {
+    entries[currentDate.date] = {
+      anos: tcData.anos,
+      meses: tcData.meses,
+      dias: tcData.dias,
+      carencia: carenciaData,
+      isDER: currentDate.isDER,
+    };
   }
-  console.log("Parsed entries:", entries); // Debug log
+
+  console.log("Parsed entries:", entries);
   return entries;
 }
 
-function fillTable(entries) {
+async function simulateTyping(input, value) {
+  input.focus();
+
+  // Clear existing value
+  input.value = "";
+
+  // Convert value to string and type each digit
+  const valueStr = value.toString();
+  for (let i = 0; i < valueStr.length; i++) {
+    const digit = valueStr[i];
+    input.value += digit;
+
+    // Dispatch events for each digit
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: digit,
+        code: `Digit${digit}`,
+        bubbles: true,
+      })
+    );
+    input.dispatchEvent(
+      new KeyboardEvent("keypress", {
+        key: digit,
+        code: `Digit${digit}`,
+        bubbles: true,
+      })
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(
+      new KeyboardEvent("keyup", {
+        key: digit,
+        code: `Digit${digit}`,
+        bubbles: true,
+      })
+    );
+
+    // Wait 100ms before next keystroke
+    await new Promise((resolve) => setTimeout(resolve, 0.1));
+  }
+
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  input.dispatchEvent(new Event("blur", { bubbles: true }));
+}
+
+async function fillTable(entries) {
   if (!entries || Object.keys(entries).length === 0) {
     console.log("No entries to process");
     return;
@@ -79,16 +143,17 @@ function fillTable(entries) {
     ["31/12/2019", "31/12/2019"],
     ["31/12/2020", "31/12/2020"],
     ["31/12/2021", "31/12/2021"],
+    ["31/12/2022", "31/12/2022"],
+    ["31/12/2023", "31/12/2023"],
   ]);
 
-  rows.forEach((row) => {
+  for (const row of rows) {
     const dateCell = row.querySelector("td");
-    if (!dateCell) return;
+    if (!dateCell) continue;
 
     const cellText = dateCell.textContent.trim();
     let targetDate = null;
 
-    // Find the matching date
     for (const [key, value] of dateMapping) {
       if (cellText.includes(key)) {
         targetDate = value;
@@ -96,23 +161,35 @@ function fillTable(entries) {
       }
     }
 
-    // Handle DER separately
     if (cellText.includes("DER")) {
       targetDate = Object.keys(entries).find((date) => entries[date].isDER);
     }
 
-    console.log("Processing row:", cellText, "Target date:", targetDate); // Debug log
-
     if (targetDate && entries[targetDate]) {
       const inputs = row.querySelectorAll("input");
       if (inputs.length >= 4) {
-        inputs[0].value = entries[targetDate].anos;
-        inputs[1].value = entries[targetDate].meses;
-        inputs[2].value = entries[targetDate].dias;
-        inputs[3].value = entries[targetDate].carencia;
+        for (let i = 0; i < inputs.length; i++) {
+          let value;
+          switch (i) {
+            case 0:
+              value = parseInt(entries[targetDate].anos, 10);
+              break;
+            case 1:
+              value = parseInt(entries[targetDate].meses, 10);
+              break;
+            case 2:
+              value = parseInt(entries[targetDate].dias, 10);
+              break;
+            case 3:
+              value = parseInt(entries[targetDate].carencia, 10);
+              break;
+          }
+
+          await simulateTyping(inputs[i], value);
+        }
       }
     }
-  });
+  }
 }
 
 function handleImport() {
