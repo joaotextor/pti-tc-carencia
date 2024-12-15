@@ -1,9 +1,10 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "PTI TC Carencia",
   "version": "1.0",
   "description": "PTI TC Carencia Extension",
-  "permissions": ["https://planilha.tramitacaointeligente.com.br/*"],
+  "permissions": [],
+  "host_permissions": ["https://planilha.tramitacaointeligente.com.br/*"],
   "content_scripts": [
     {
       "matches": ["https://planilha.tramitacaointeligente.com.br/*"],
@@ -11,7 +12,7 @@
       "js": ["content.js"]
     }
   ],
-  "browser_action": {
+  "action": {
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
